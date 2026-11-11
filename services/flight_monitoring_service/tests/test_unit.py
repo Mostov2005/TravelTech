@@ -13,7 +13,7 @@ sys.path.insert(0, str(SERVICE_DIR))
 sys.path.insert(0, str(APP_DIR))
 
 from app.services import FlightMonitoringService
-
+import app.services as monitoring_services
 
 @pytest.fixture
 def db():
@@ -41,7 +41,7 @@ def test_create_monitoring_success(service):
     data.flight_id = flight_id
     data.status = "scheduled"
 
-    with patch("app.services.get_flight") as mock_get_flight:
+    with patch.object(monitoring_services, "get_flight") as mock_get_flight:
         result = service.create_monitoring(data)
 
     assert result == monitoring
@@ -56,7 +56,7 @@ def test_create_monitoring_duplicate(service):
     data = MagicMock()
     data.flight_id = uuid4()
 
-    with patch("app.services.get_flight") as mock_get_flight:
+    with patch.object(monitoring_services, "get_flight") as mock_get_flight:
         with pytest.raises(HTTPException) as exc:
             service.create_monitoring(data)
 

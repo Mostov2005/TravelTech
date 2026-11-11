@@ -11,10 +11,13 @@ from schemas import (
     FlightResponse
 )
 from services import FlightService
+from auth import get_current_user
 
-
-router = APIRouter(prefix="/flights", tags=["Flights"])
-
+router = APIRouter(
+    prefix="/flights",
+    tags=["Flights"],
+    dependencies=[Depends(get_current_user)]
+)
 
 @router.post("/airports", response_model=AirportResponse)
 def create_airport(

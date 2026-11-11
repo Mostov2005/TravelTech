@@ -13,6 +13,7 @@ sys.path.insert(0, str(SERVICE_DIR))
 sys.path.insert(0, str(APP_DIR))
 
 from app.services import IdentityService
+import app.services as identity_services
 
 
 @pytest.fixture
@@ -91,11 +92,10 @@ def test_login_success(service):
 
     service.user_repository.get_by_email.return_value = user
 
-    service_module = sys.modules["app.services"]
-    service_module.verify_password = lambda password, hashed: True
-    service_module.create_access_token = lambda user_id: "access_token"
-    service_module.create_refresh_token = lambda user_id: ("refresh_token", MagicMock())
-    service_module.hash_refresh_token = lambda token: "token_hash"
+    identity_services.verify_password = lambda password, hashed: True
+    identity_services.create_access_token = lambda user_id: "access_token"
+    identity_services.create_refresh_token = lambda user_id: ("refresh_token", MagicMock())
+    identity_services.hash_refresh_token = lambda token: "token_hash"
 
     result = service.login(data)
 
@@ -115,7 +115,7 @@ def test_login_invalid_credentials(service, monkeypatch):
 
     service.user_repository.get_by_email.return_value = user
 
-    monkeypatch.setattr("app.services.verify_password", lambda password, hashed: False)
+    monkeypatch.setattr(identity_services, "verify_password", lambda password, hashed: False)
 
     with pytest.raises(HTTPException) as exc:
         service.login(data)
@@ -137,15 +137,15 @@ def test_refresh_tokens_success(service, monkeypatch):
     service.session_repository.get_by_token_hash.return_value = session
     service.user_repository.get_by_id.return_value = user
 
-    monkeypatch.setattr(
-        "app.services.decode_token",
-        lambda token: {"type": "refresh", "sub": str(user_id)}
-    )
-    monkeypatch.setattr("app.services.hash_refresh_token", lambda token: "token_hash")
-    monkeypatch.setattr("app.services.create_access_token", lambda user_id: "new_access_token")
-    monkeypatch.setattr(
-        "app.services.create_refresh_token",
-        lambda user_id: ("new_refresh_token", datetime.now(timezone.utc) + timedelta(days=7))
+    identity_services.decode_token = lambda token: {
+        "type": "refresh",
+        "sub": str(user_id)
+    }
+    identity_services.hash_refresh_token = lambda token: "token_hash"
+    identity_services.create_access_token = lambda user_id: "new_access_token"
+    identity_services.create_refresh_token = lambda user_id: (
+        "new_refresh_token",
+        datetime.now(timezone.utc) + timedelta(days=7)
     )
 
     result = service.refresh_tokens(refresh_token)
@@ -153,6 +153,7 @@ def test_refresh_tokens_success(service, monkeypatch):
     assert result["access_token"] == "new_access_token"
     assert result["refresh_token"] == "new_refresh_token"
     assert result["token_type"] == "bearer"
+
     service.session_repository.delete.assert_called_once_with(session)
     service.session_repository.create.assert_called_once()
 

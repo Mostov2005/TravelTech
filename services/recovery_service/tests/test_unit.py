@@ -130,7 +130,10 @@ def test_execute_rebooking_saga_compensation(service):
     )
 
     with pytest.raises(Exception, match="Database error"):
-        service.execute_rebooking_saga(case_id, data)
+        service.execute_rebooking_saga(case_id, data, "test-access-token")
 
     service.create_trip_booking.assert_called_once()
-    service.delete_trip_booking.assert_called_once_with(booking_id)
+    service.delete_trip_booking.assert_called_once_with(
+        booking_id,
+        "test-access-token"
+    )

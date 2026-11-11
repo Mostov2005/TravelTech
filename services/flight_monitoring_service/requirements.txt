@@ -6,3 +6,4 @@ python-dotenv
 pika
 grpcio
 protobuf
+python-jose[cryptography]

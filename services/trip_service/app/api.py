@@ -15,14 +15,19 @@ from schemas import (
     BookingCreate,
     BookingResponse,
 )
+from auth import get_current_user
 
-router = APIRouter(prefix="/trips", tags=["Trips"])
+router = APIRouter(
+    prefix="/trips",
+    tags=["Trips"],
+    dependencies=[Depends(get_current_user)]
+)
 
 
 @router.post("/", response_model=TripResponse, status_code=201)
 def create_trip(
         data: TripCreate,
-        owner_id: UUID,
+        owner_id: UUID = Depends(get_current_user),
         db: Session = Depends(get_db)
 ):
     service = TripService(db)
@@ -37,9 +42,10 @@ def get_trip(
     service = TripService(db)
     return service.get_trip_cached(trip_id)
 
+
 @router.get("/", response_model=list[TripResponse])
 def get_user_trips(
-        owner_id: UUID,
+        owner_id: UUID = Depends(get_current_user),
         db: Session = Depends(get_db)
 ):
     service = TripService(db)

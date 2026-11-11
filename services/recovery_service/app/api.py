@@ -12,8 +12,14 @@ from schemas import (
     RebookingSagaCreate
 )
 from services import RecoveryService
+from fastapi.security import HTTPAuthorizationCredentials
+from auth import get_current_user, security
 
-router = APIRouter(prefix="/recovery", tags=["Recovery"])
+router = APIRouter(
+    prefix="/recovery",
+    tags=["Recovery"],
+    dependencies=[Depends(get_current_user)]
+)
 
 
 @router.post("/cases", response_model=DisruptionCaseResponse)
@@ -69,7 +75,12 @@ def get_rebooking_proposals(
 def execute_rebooking_saga(
         case_id: UUID,
         data: RebookingSagaCreate,
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db),
+        credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     service = RecoveryService(db)
-    return service.execute_rebooking_saga(case_id, data)
+    return service.execute_rebooking_saga(
+        case_id,
+        data,
+        credentials.credentials
+    )

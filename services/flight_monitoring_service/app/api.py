@@ -11,10 +11,13 @@ from schemas import (
     FlightStatusResponse
 )
 from services import FlightMonitoringService
+from auth import get_current_user
 
-
-router = APIRouter(prefix="/monitoring", tags=["Flight Monitoring"])
-
+router = APIRouter(
+    prefix="/monitoring",
+    tags=["Flight Monitoring"],
+    dependencies=[Depends(get_current_user)]
+)
 
 @router.post("/", response_model=FlightMonitoringResponse)
 def create_monitoring(

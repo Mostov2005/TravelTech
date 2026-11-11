@@ -1,7 +1,8 @@
 fastapi
 uvicorn[standard]
 sqlalchemy
-psycopg[binary]
 python-dotenv
 grpcio
 grpcio-tools
+python-jose[cryptography]
+psycopg[binary]

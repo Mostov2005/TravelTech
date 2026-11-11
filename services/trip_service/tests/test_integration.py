@@ -1,9 +1,16 @@
 import importlib.util
 import sys
+import os
+
+os.environ["SECRET_KEY"] = "traveltech_identity_secret_key_2026"
+os.environ["ALGORITHM"] = "HS256"
+
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
+from datetime import datetime, timedelta, timezone
+from jose import jwt
 
 SERVICE_DIR = Path(__file__).resolve().parents[1]
 APP_DIR = SERVICE_DIR / "app"
@@ -21,10 +28,26 @@ spec.loader.exec_module(trip_service_main)
 
 app = trip_service_main.app
 client = TestClient(app)
+SECRET_KEY = "traveltech_identity_secret_key_2026"
+ALGORITHM = "HS256"
+
+
+def get_auth_headers(owner_id):
+    token = jwt.encode(
+        {
+            "sub": str(owner_id),
+            "type": "access",
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=30)
+        },
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+    return {"Authorization": f"Bearer {token}"}
 
 
 def test_trip_full_lifecycle():
     owner_id = str(uuid4())
+    client.headers.update(get_auth_headers(owner_id))
 
     # Создание поездки
     create_response = client.post(
@@ -64,6 +87,7 @@ def test_trip_full_lifecycle():
 
 def test_trip_segment_lifecycle():
     owner_id = str(uuid4())
+    client.headers.update(get_auth_headers(owner_id))
 
     # Создание поездки
     trip_response = client.post(
@@ -115,6 +139,7 @@ def test_trip_segment_lifecycle():
 
 def test_booking_lifecycle():
     owner_id = str(uuid4())
+    client.headers.update(get_auth_headers(owner_id))
 
     # Создание поездки
     trip_response = client.post(

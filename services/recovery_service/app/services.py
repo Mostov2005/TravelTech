@@ -76,6 +76,7 @@ class RecoveryService:
             trip_id: UUID,
             flight_id: UUID,
             booking_reference: str,
+            access_token: str,
             ticket_number: str | None = None
     ):
         response = httpx.post(
@@ -85,15 +86,25 @@ class RecoveryService:
                 "booking_reference": booking_reference,
                 "ticket_number": ticket_number
             },
+            headers={
+                "Authorization": f"Bearer {access_token}"
+            },
             timeout=10.0
         )
 
         response.raise_for_status()
         return response.json()
 
-    def delete_trip_booking(self, booking_id: UUID):
+    def delete_trip_booking(
+            self,
+            booking_id: UUID,
+            access_token: str
+    ):
         response = httpx.delete(
             f"{TRIP_SERVICE_URL}/trips/bookings/{booking_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}"
+            },
             timeout=10.0
         )
 
@@ -102,7 +113,8 @@ class RecoveryService:
     def execute_rebooking_saga(
             self,
             case_id: UUID,
-            data: RebookingSagaCreate
+            data: RebookingSagaCreate,
+            access_token: str
     ):
         case = self.get_disruption_case(case_id)
 
@@ -110,7 +122,8 @@ class RecoveryService:
             trip_id=case.trip_id,
             flight_id=data.alternative_flight_id,
             booking_reference=data.booking_reference,
-            ticket_number=data.ticket_number
+            ticket_number=data.ticket_number,
+            access_token=access_token
         )
 
         try:
@@ -129,5 +142,8 @@ class RecoveryService:
             }
 
         except Exception:
-            self.delete_trip_booking(UUID(booking["id"]))
+            self.delete_trip_booking(
+                UUID(booking["id"]),
+                access_token
+            )
             raise
