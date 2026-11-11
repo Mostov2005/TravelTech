@@ -1,0 +1,17 @@
+@'
+stages:
+  - test
+
+tests:
+  stage: test
+  image: python:3.11
+  before_script:
+    - pip install -r services/trip_service/requirements.txt
+    - pip install -r services/flight_service/requirements.txt
+    - pip install -r services/recovery_service/requirements.txt
+    - pip install -r services/flight_monitoring_service/requirements.txt
+    - pip install -r services/identity_service/requirements.txt
+    - pip install pytest httpx
+  script:
+    - pytest services/ -v
+'@ | Set-Content .gitlab-ci.yml
