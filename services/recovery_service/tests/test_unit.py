@@ -102,3 +102,35 @@ def test_create_rebooking_proposal_case_not_found(service):
 
     assert exc.value.status_code == 404
     service.proposal_repository.create.assert_not_called()
+
+
+def test_execute_rebooking_saga_compensation(service):
+    case_id = uuid4()
+    trip_id = uuid4()
+    flight_id = uuid4()
+    booking_id = uuid4()
+
+    data = MagicMock()
+    data.alternative_flight_id = flight_id
+    data.booking_reference = "SAGA-TEST-001"
+    data.ticket_number = "TICKET-SAGA-001"
+    data.description = "Saga compensation test"
+
+    case = MagicMock()
+    case.trip_id = trip_id
+    service.case_repository.get_by_id.return_value = case
+
+    service.create_trip_booking = MagicMock(
+        return_value={"id": str(booking_id)}
+    )
+    service.delete_trip_booking = MagicMock()
+
+    service.proposal_repository.create.side_effect = Exception(
+        "Database error"
+    )
+
+    with pytest.raises(Exception, match="Database error"):
+        service.execute_rebooking_saga(case_id, data)
+
+    service.create_trip_booking.assert_called_once()
+    service.delete_trip_booking.assert_called_once_with(booking_id)

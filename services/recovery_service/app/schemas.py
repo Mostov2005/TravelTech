@@ -37,3 +37,10 @@ class RebookingProposalResponse(BaseModel):
     status: str
     description: str | None
     created_at: datetime
+
+
+class RebookingSagaCreate(BaseModel):
+    alternative_flight_id: UUID
+    booking_reference: str
+    ticket_number: str | None = None
+    description: str | None = None

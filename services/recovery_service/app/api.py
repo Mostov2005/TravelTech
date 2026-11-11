@@ -8,18 +8,18 @@ from schemas import (
     DisruptionCaseCreate,
     DisruptionCaseResponse,
     RebookingProposalCreate,
-    RebookingProposalResponse
+    RebookingProposalResponse,
+    RebookingSagaCreate
 )
 from services import RecoveryService
-
 
 router = APIRouter(prefix="/recovery", tags=["Recovery"])
 
 
 @router.post("/cases", response_model=DisruptionCaseResponse)
 def create_disruption_case(
-    data: DisruptionCaseCreate,
-    db: Session = Depends(get_db)
+        data: DisruptionCaseCreate,
+        db: Session = Depends(get_db)
 ):
     service = RecoveryService(db)
     return service.create_disruption_case(data)
@@ -33,8 +33,8 @@ def get_disruption_cases(db: Session = Depends(get_db)):
 
 @router.get("/cases/{case_id}", response_model=DisruptionCaseResponse)
 def get_disruption_case(
-    case_id: UUID,
-    db: Session = Depends(get_db)
+        case_id: UUID,
+        db: Session = Depends(get_db)
 ):
     service = RecoveryService(db)
     return service.get_disruption_case(case_id)
@@ -45,9 +45,9 @@ def get_disruption_case(
     response_model=RebookingProposalResponse
 )
 def create_rebooking_proposal(
-    case_id: UUID,
-    data: RebookingProposalCreate,
-    db: Session = Depends(get_db)
+        case_id: UUID,
+        data: RebookingProposalCreate,
+        db: Session = Depends(get_db)
 ):
     service = RecoveryService(db)
     return service.create_rebooking_proposal(case_id, data)
@@ -58,8 +58,18 @@ def create_rebooking_proposal(
     response_model=list[RebookingProposalResponse]
 )
 def get_rebooking_proposals(
-    case_id: UUID,
-    db: Session = Depends(get_db)
+        case_id: UUID,
+        db: Session = Depends(get_db)
 ):
     service = RecoveryService(db)
     return service.get_proposals_by_case(case_id)
+
+
+@router.post("/cases/{case_id}/rebooking")
+def execute_rebooking_saga(
+        case_id: UUID,
+        data: RebookingSagaCreate,
+        db: Session = Depends(get_db)
+):
+    service = RecoveryService(db)
+    return service.execute_rebooking_saga(case_id, data)
