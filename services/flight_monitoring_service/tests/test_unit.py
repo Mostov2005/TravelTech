@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -41,9 +41,11 @@ def test_create_monitoring_success(service):
     data.flight_id = flight_id
     data.status = "scheduled"
 
-    result = service.create_monitoring(data)
+    with patch("app.services.get_flight") as mock_get_flight:
+        result = service.create_monitoring(data)
 
     assert result == monitoring
+    mock_get_flight.assert_called_once_with(str(flight_id))
     service.monitoring_repository.create.assert_called_once()
     service.status_repository.create.assert_called_once()
 
@@ -54,10 +56,12 @@ def test_create_monitoring_duplicate(service):
     data = MagicMock()
     data.flight_id = uuid4()
 
-    with pytest.raises(HTTPException) as exc:
-        service.create_monitoring(data)
+    with patch("app.services.get_flight") as mock_get_flight:
+        with pytest.raises(HTTPException) as exc:
+            service.create_monitoring(data)
 
     assert exc.value.status_code == 409
+    mock_get_flight.assert_called_once_with(str(data.flight_id))
     service.monitoring_repository.create.assert_not_called()
 
 

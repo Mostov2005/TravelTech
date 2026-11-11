@@ -90,6 +90,7 @@ services:
     restart: unless-stopped
     ports:
       - "8002:8002"
+      - "50051:50051"
     environment:
       DATABASE_URL: postgresql+psycopg://traveltech:traveltech_password@postgres:5432/flight_db
     depends_on:
@@ -106,9 +107,12 @@ services:
       - "8003:8003"
     environment:
       DATABASE_URL: postgresql+psycopg://traveltech:traveltech_password@postgres:5432/monitoring_db
+      FLIGHT_SERVICE_ADDRESS: flight-service:50051
     depends_on:
       postgres:
         condition: service_healthy
+      flight-service:
+        condition: service_started
 
   identity-service:
     build:

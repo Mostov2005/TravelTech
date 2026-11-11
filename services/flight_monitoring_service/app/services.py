@@ -9,6 +9,7 @@ from repositories import (
     FlightStatusRepository
 )
 from schemas import FlightMonitoringCreate, FlightStatusCreate
+from grpc_client import get_flight
 
 
 class FlightMonitoringService:
@@ -17,6 +18,8 @@ class FlightMonitoringService:
         self.status_repository = FlightStatusRepository(db)
 
     def create_monitoring(self, data: FlightMonitoringCreate):
+        get_flight(str(data.flight_id))
+
         existing = self.monitoring_repository.get_by_flight_id(data.flight_id)
 
         if existing:
