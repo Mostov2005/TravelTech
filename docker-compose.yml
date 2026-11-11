@@ -1,3 +1,4 @@
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -11,6 +12,7 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U traveltech -d trip_db"]
       interval: 5s
@@ -23,6 +25,11 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -31,6 +38,93 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  trip-service:
+    build:
+      context: .
+      dockerfile: services/trip_service/Dockerfile
+    container_name: traveltech-trip-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://traveltech:traveltech_password@postgres:5432/trip_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  recovery-service:
+    build:
+      context: .
+      dockerfile: services/recovery_service/Dockerfile
+    container_name: traveltech-recovery-service
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql+psycopg://traveltech:traveltech_password@postgres:5432/recovery_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  flight-service:
+    build:
+      context: .
+      dockerfile: services/flight_service/Dockerfile
+    container_name: traveltech-flight-service
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: postgresql+psycopg://traveltech:traveltech_password@postgres:5432/flight_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  flight-monitoring-service:
+    build:
+      context: .
+      dockerfile: services/flight_monitoring_service/Dockerfile
+    container_name: traveltech-flight-monitoring-service
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    environment:
+      DATABASE_URL: postgresql+psycopg://traveltech:traveltech_password@postgres:5432/monitoring_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  identity-service:
+    build:
+      context: .
+      dockerfile: services/identity_service/Dockerfile
+    container_name: traveltech-identity-service
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    environment:
+      DATABASE_URL: postgresql+psycopg://traveltech:traveltech_password@postgres:5432/identity_db
+      SECRET_KEY: traveltech_identity_secret_key_2026
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 90
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:

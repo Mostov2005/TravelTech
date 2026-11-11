@@ -1,17 +1,19 @@
 import json
+import os
+
 import pika
 
 
 def get_rabbitmq_connection():
     credentials = pika.PlainCredentials(
-        username="guest",
-        password="guest"
+        username=os.getenv("RABBITMQ_USER", "guest"),
+        password=os.getenv("RABBITMQ_PASSWORD", "guest")
     )
 
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(
-            host="localhost",
-            port=5672,
+            host=os.getenv("RABBITMQ_HOST", "localhost"),
+            port=int(os.getenv("RABBITMQ_PORT", "5672")),
             credentials=credentials
         )
     )
