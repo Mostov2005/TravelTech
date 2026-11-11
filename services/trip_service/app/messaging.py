@@ -1,7 +1,11 @@
 import json
 import os
-
+import time
 import pika
+from datetime import datetime, timezone
+
+from database import SessionLocal
+from models import OutboxEvent
 
 
 def get_rabbitmq_connection():
@@ -55,6 +59,45 @@ def consume_messages(queue_name: str):
 
     print(f"Ожидание сообщений из очереди {queue_name}...")
     channel.start_consuming()
+
+
+def publish_outbox_events():
+    db = SessionLocal()
+
+    try:
+        events = (
+            db.query(OutboxEvent)
+            .filter(OutboxEvent.processed_at.is_(None))
+            .order_by(OutboxEvent.created_at)
+            .all()
+        )
+
+        for event in events:
+            publish_message(
+                queue_name="trip_events",
+                message=event.payload
+            )
+
+            event.processed_at = datetime.now(timezone.utc)
+
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+
+def run_outbox_worker():
+    while True:
+        try:
+            publish_outbox_events()
+        except Exception as error:
+            print("Ошибка обработки Outbox:", error)
+
+        time.sleep(5)
 
 
 if __name__ == "__main__":

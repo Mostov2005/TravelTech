@@ -48,12 +48,21 @@ def test_create_trip_success(service):
 
     service.repository.create.return_value = created_trip
 
-    with patch("app.services.publish_message") as publish:
-        result = service.create_trip(owner_id, data)
+    result = service.create_trip(owner_id, data)
 
     assert result == created_trip
     service.repository.create.assert_called_once()
-    publish.assert_called_once()
+
+    service.db.add.assert_called_once()
+    event = service.db.add.call_args.args[0]
+
+    assert event.event_type == "trip.created"
+    assert event.payload["trip_id"] == str(created_trip.id)
+    assert event.payload["owner_id"] == str(owner_id)
+    assert event.payload["trip_name"] == data.name
+
+    service.db.commit.assert_called_once()
+    service.db.refresh.assert_called_once_with(created_trip)
 
 
 def test_create_trip_invalid_dates(service):

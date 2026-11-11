@@ -11,8 +11,7 @@ class TripRepository:
 
     def create(self, trip: Trip) -> Trip:
         self.db.add(trip)
-        self.db.commit()
-        self.db.refresh(trip)
+        self.db.flush()
         return trip
 
     def get_by_id(self, trip_id):

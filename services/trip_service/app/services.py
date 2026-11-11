@@ -4,8 +4,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from messaging import publish_message
-from models import Booking, ItinerarySegment, Trip
+from models import Booking, ItinerarySegment, OutboxEvent, Trip
 from repositories import (
     BookingRepository,
     ItinerarySegmentRepository,
@@ -25,6 +24,7 @@ from cache import redis_client
 class TripService:
 
     def __init__(self, db: Session):
+        self.db = db
         self.repository = TripRepository(db)
 
     def create_trip(self, owner_id: UUID, data: TripCreate) -> Trip:
@@ -41,17 +41,26 @@ class TripService:
             end_date=data.end_date
         )
 
-        trip = self.repository.create(trip)
+        try:
+            trip = self.repository.create(trip)
 
-        publish_message(
-            queue_name="trip_events",
-            message={
-                "event": "trip.created",
-                "trip_id": str(trip.id),
-                "owner_id": str(trip.owner_id),
-                "trip_name": trip.name
-            }
-        )
+            event = OutboxEvent(
+                event_type="trip.created",
+                payload={
+                    "event": "trip.created",
+                    "trip_id": str(trip.id),
+                    "owner_id": str(trip.owner_id),
+                    "trip_name": trip.name
+                }
+            )
+
+            self.db.add(event)
+            self.db.commit()
+            self.db.refresh(trip)
+
+        except Exception:
+            self.db.rollback()
+            raise
 
         return trip
 
