@@ -2,13 +2,59 @@ name: TravelTech CI
 
 on:
   push:
-    branches: [master]
+    branches: [ master ]
   pull_request:
-    branches: [master]
+    branches: [ master ]
 
 jobs:
   tests:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: traveltech
+          POSTGRES_PASSWORD: traveltech_password
+          POSTGRES_DB: postgres
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U traveltech"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: traveltech
+          RABBITMQ_DEFAULT_PASS: traveltech_password
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: traveltech_identity_secret_key_2026
+      ALGORITHM: HS256
+      RABBITMQ_HOST: localhost
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: traveltech
+      RABBITMQ_PASSWORD: traveltech_password
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
 
     steps:
       - name: Checkout repository
@@ -29,5 +75,26 @@ jobs:
           pip install -r services/identity_service/requirements.txt
           pip install pytest httpx
 
+      - name: Create databases
+        run: |
+          for db in trip_db flight_db monitoring_db recovery_db identity_db; do
+            PGPASSWORD=traveltech_password createdb \
+              -h localhost -p 5433 -U traveltech "$db"
+          done
+
       - name: Run tests
-        run: pytest services/ -v
+        run: |
+          for service in trip flight recovery flight_monitoring identity; do
+            case "$service" in
+              trip) db=trip_db ;;
+              flight) db=flight_db ;;
+              recovery) db=recovery_db ;;
+              flight_monitoring) db=monitoring_db ;;
+              identity) db=identity_db ;;
+            esac
+
+            export DATABASE_URL="postgresql+psycopg://traveltech:traveltech_password@localhost:5433/$db"
+
+            echo "Running tests for $service"
+            pytest "services/${service}_service/tests/" -v || exit 1
+          done
